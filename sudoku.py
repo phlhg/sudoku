@@ -2,30 +2,21 @@ def solve(data):
   graph = create_graph(data)
   field = data
 
-  remaining = {}
+  remaining = set()
   all_colors = set(range(1,10))
 
   for id in graph.get_nodes():
-    # Field is already solved
-    if graph.get_value(id) != None:
-      continue
-
-    values = set(map(lambda i: graph.get_value(i), graph.neighbors(id)))
-    values.remove(None)
-
-    if len(values) > 8:
-      raise SolverException('Overconstrained - Not solvable', field)
-    
-    remaining[id] = values
+    if graph.get_value(id) == None:
+      remaining.add(id)
   
-  while len(remaining.keys()) > 0:
-    id = next((id for id in remaining.keys() if len(remaining[id]) >= 8), None)
+  while len(remaining) > 0:
+    id = next((id for id in remaining if len(graph.neighbor_values(id)) >= 8), None)
 
     if not id:
       raise SolverException('Not solvable', field)
 
-    neighbors = set(graph.neighbors(id))
-    difference = all_colors.difference(remaining[id])
+    colors = graph.neighbor_values(id)
+    difference = all_colors.difference(colors)
 
     if len(difference) != 1:
       raise SolverException('Unexpected', field)
@@ -34,14 +25,10 @@ def solve(data):
     graph.set_value(id, value)
     field[id[0]][id[1]] = value
 
-    for nid in neighbors:
-      if nid in remaining:
-        remaining[nid].add(value)
-
-    del remaining[id]
+    remaining.remove(id)
 
     # Uncomment to see steps
-    print_field(field, selected=id, highlighted=neighbors)
+    print_field(field, selected=id, highlighted=graph.neighbors(id))
 
   return field
 
@@ -119,7 +106,7 @@ class Graph:
     if id in self.nodes:
       raise Exception(f'Node {id} already exists!')
     
-    self.adjeceny[id] = []
+    self.adjeceny[id] = set()
     self.set_value(id, value)
 
   def get_nodes(self):
@@ -132,10 +119,15 @@ class Graph:
     return self.nodes[id]
 
   def add_edge(self, id_from, id_to):
-    self.adjeceny[id_from].append(id_to)
+    self.adjeceny[id_from].add(id_to)
 
   def neighbors(self, id):
     return self.adjeceny[id]
+  
+  def neighbor_values(self, id):
+    values = set(map(lambda id: self.get_value(id), self.neighbors(id)))
+    values.discard(None)
+    return values
 
 
 class SolverException(Exception):
